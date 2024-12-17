@@ -1,24 +1,14 @@
-import spotipy
 import pandas as pd
-from spotipy.oauth2 import SpotifyClientCredentials
-from spotipy.oauth2 import SpotifyOAuth
-from spotipy import Spotify
+from utils import initialize_spotify
 
-from dotenv import load_dotenv
-import os
 import time
 
-# Load environment variables
-load_dotenv()
-
-# Get credentials
-client_id = os.getenv("spotify_Client_ID")
-client_secret = os.getenv("spotify_Client_Secret")
 
 # Initialize Spotipy
-sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(client_id=client_id, client_secret=client_secret))
+sp = initialize_spotify() 
 
-def get_mosts_popular_tracks_by_artists(artists, limit): 
+
+def get_all_songs_by_artists(artists, limit): 
     results = sp.search(q=f'artist:"{artists}"', type='artist', limit=10)
     if 'artists' not in results or 'items' not in results['artists'] or not results['artists']['items']:
             print(f"No se encontró el artista: {artists}")
@@ -62,12 +52,47 @@ def get_mosts_popular_tracks_by_artists(artists, limit):
         time.sleep(1)
 
     df_tracks = pd.DataFrame(enriched_tracks)
-    filename = f'Enriched_Data/{artists}-songs.csv'
+    filename = f'Enriched_Data/Songs_From_Artists/{artists}-songs.csv'
     df_tracks.to_csv(filename, index=False, encoding='utf-8')
 
     return df_tracks.sort_values(by='popularity', ascending=False).head(limit)
 
 
+def get_all_albums_from_artists(artist_name):
+    results = sp.search(q=f'artist:"{artist_name}"', type='artist', limit=10)
+    if 'artists' not in results or 'items' not in results['artists'] or not results['artists']['items']:
+            print(f"No se encontró el artista: {artist_name}")
+            return []
+    
+    artist = max(results['artists']['items'], key=lambda a: a['popularity'])
+    artist_id = artist['id']
 
-popular_tracks = get_mosts_popular_tracks_by_artists('Kanye West', 10)
+    albums = sp.artist_albums(artist_id, album_type='album')
+    albums_df = pd.DataFrame(albums['items'])
+    filename = f'Enriched_Data/Albums/{artist_name}-albums.csv'
+    albums_df.to_csv(filename, index=False, encoding='utf-8')
+    return albums_df
+
+
+def get_artist_genres(artist_name):
+    results = sp.search(q=f'artist:"{artist_name}"', type='artist', limit=10)
+    if 'artists' not in results or 'items' not in results['artists'] or not results['artists']['items']:
+            print(f"No se encontró el artista: {artist_name}")
+            return []
+    
+    artist = max(results['artists']['items'], key=lambda a: a['popularity'])
+    artists_genre = artist['genres']
+
+    genre_data = [{'genre': genre} for genre in artists_genre]
+    
+    genre_df = pd.DataFrame(genre_data)
+
+    filename = f'Enriched_Data/Genres_Artists/{artist_name}-genres.csv'
+    genre_df.to_csv(filename, index=False, encoding='utf-8')
+    return genre_df
+
+
+#popular_albums = get_all_albums_from_artists('Kanye West')
+
+artist_genres = get_artist_genres('The Weeknd')
 
